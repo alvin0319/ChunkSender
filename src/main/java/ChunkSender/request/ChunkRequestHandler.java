@@ -19,8 +19,10 @@ public class ChunkRequestHandler implements HttpHandler {
 	public void handle(HttpExchange t) {
 		String address = t.getRemoteAddress().getAddress().toString();
 		if (!ChunkSender.allowedAddresses.contains(address) || !t.getRequestURI().getQuery().matches(queryRegex)) {
+			System.out.println(address);
 			return;
 		}
+		System.out.println("Sending chunk");
 		String[] queries = t.getRequestURI().getQuery().split("&");
 		int chunkX;
 		int chunkZ;
