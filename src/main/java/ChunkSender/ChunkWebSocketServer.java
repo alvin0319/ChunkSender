@@ -117,7 +117,7 @@ public class ChunkWebSocketServer extends WebSocketServer {
                 buffer.readBytes(structureType);
                 int counter = buffer.readIntLE();
 
-                ServerLevel structureLevel = ((CraftWorld) Objects.requireNonNull(ChunkSender.getInstance().getServer().getWorld(new String(structureWorldName)))).getHandle();
+                ServerLevel structureLevel = ((CraftWorld) Objects.requireNonNull(ChunkSender.getInstance().getServer().getWorld(new String(structureDimension)))).getHandle();
 
                 BlockPos pos = new BlockPos(structureChunkX, 0, structureChunkZ);
                 Structure structure = Registry.STRUCTURE.get(Objects.requireNonNull(NamespacedKey.fromString(new String(structureType))));
@@ -161,7 +161,7 @@ public class ChunkWebSocketServer extends WebSocketServer {
                 buffer.readBytes(biomeType);
                 int biomeCounter = buffer.readIntLE();
 
-                World biomeWorld = ChunkSender.getInstance().getServer().getWorld(new String(biomeWorldName));
+                World biomeWorld = ChunkSender.getInstance().getServer().getWorld(new String(biomeDimension));
                 assert biomeWorld != null;
                 ServerLevel biomeLevel = ((CraftWorld) biomeWorld).getHandle();
 
