@@ -5,6 +5,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -124,31 +126,37 @@ public class ChunkWebSocketServer extends WebSocketServer {
                 assert structure != null;
                 List<Holder<net.minecraft.world.level.levelgen.structure.Structure>> holders = new ArrayList<>();
                 holders.add(Holder.direct(CraftStructure.bukkitToMinecraft(structure)));
-                Pair<BlockPos, Holder<net.minecraft.world.level.levelgen.structure.Structure>> result = structureLevel.getChunkSource().getGenerator().findNearestMapStructure(structureLevel, HolderSet.direct(holders), pos, 100, false);
+                Pair<BlockPos, Holder<net.minecraft.world.level.levelgen.structure.Structure>> result = null;
+                try {
+                    result = ChunkSender.getInstance().getServer().getScheduler().callSyncMethod(ChunkSender.getInstance(), () -> structureLevel.getChunkSource().getGenerator().findNearestMapStructure(structureLevel, HolderSet.direct(holders), pos, 100, false)).get();
 
-                boolean structureSuccess = result != null;
-                assert result != null;
+                    boolean structureSuccess = result != null;
+                    assert result != null;
 
-                ByteBuf response = Unpooled.buffer();
-                VarInts.writeUnsignedInt(response, ResponseType.STRUCTURE.ordinal());
-                response.writeIntLE(structureChunkX);
-                response.writeIntLE(structureChunkZ);
-                response.writeByte(structureSuccess ? 1 : 0);
-                if (structureSuccess) {
-                    VarInts.writeUnsignedInt(response, structureDimension.length);
-                    response.writeBytes(structureDimension);
-                    VarInts.writeUnsignedInt(response, structureWorldName.length);
-                    response.writeBytes(structureWorldName);
-                    response.writeIntLE(result.getFirst().getX());
-                    response.writeIntLE(result.getFirst().getY());
-                    response.writeIntLE(result.getFirst().getZ());
-                    VarInts.writeUnsignedInt(response, structureType.length);
-                    response.writeBytes(structureType);
+                    ByteBuf response = Unpooled.buffer();
+                    VarInts.writeUnsignedInt(response, ResponseType.STRUCTURE.ordinal());
+                    response.writeIntLE(structureChunkX);
+                    response.writeIntLE(structureChunkZ);
+                    response.writeByte(structureSuccess ? 1 : 0);
+                    if (structureSuccess) {
+                        VarInts.writeUnsignedInt(response, structureDimension.length);
+                        response.writeBytes(structureDimension);
+                        VarInts.writeUnsignedInt(response, structureWorldName.length);
+                        response.writeBytes(structureWorldName);
+                        response.writeIntLE(result.getFirst().getX());
+                        response.writeIntLE(result.getFirst().getY());
+                        response.writeIntLE(result.getFirst().getZ());
+                        VarInts.writeUnsignedInt(response, structureType.length);
+                        response.writeBytes(structureType);
+                    }
+                    response.writeIntLE(counter);
+                    byte[] data = new byte[response.readableBytes()];
+                    response.readBytes(data);
+                    webSocket.send(Base64.getEncoder().encodeToString(data));
+                } catch (InterruptedException | ExecutionException e) {
+                    logger.warning("Error finding structure data for " + webSocket.getRemoteSocketAddress().getAddress().toString());
+                    logger.throwing(e.getClass().getName(), e.getStackTrace()[0].getMethodName(), e);
                 }
-                response.writeIntLE(counter);
-                byte[] data = new byte[response.readableBytes()];
-                response.readBytes(data);
-                webSocket.send(Base64.getEncoder().encodeToString(data));
                 break;
             case BIOME:
                 int biomeChunkX = buffer.readIntLE();
